@@ -30,6 +30,8 @@ Acesse: `http://localhost:5555`
 
 Este repo ja inclui `render.yaml`.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/saraivabr/saraiva-ai-framework)
+
 1. Crie um novo Web Service no Render conectando este repositorio.
 2. O Render vai usar:
    - Build: `pip install -r requirements.txt`
