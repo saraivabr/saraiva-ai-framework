@@ -1,0 +1,7 @@
+{
+  "my_custom_preset": {
+    "name": "Meu Preset",
+    "desc": "Descricao curta do efeito",
+    "filters": "atempo=1.01,extrastereo=m=1.05,volume=0.98"
+  }
+}

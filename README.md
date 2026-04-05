@@ -43,5 +43,22 @@ Este repo ja inclui `render.yaml`.
 - `app.py` -> rotas/API
 - `storage.py` -> SQLite
 - `processor.py` -> pipeline de processamento
-- `presets.py` -> presets base
+- `presets.py` -> presets base (catalogo expandido)
 - `ui.html` -> interface
+
+## Adicionar mais presets sem mexer no codigo
+
+1. Copie `presets_extra.example.json` para `presets_extra.json`.
+2. Adicione seus presets no formato:
+
+```json
+{
+  "id_unico": {
+    "name": "Nome do preset",
+    "desc": "Descricao",
+    "filters": "cadeia_ffmpeg"
+  }
+}
+```
+
+3. Reinicie a app. Os presets extras aparecerao automaticamente na interface.
