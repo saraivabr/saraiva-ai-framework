@@ -8,6 +8,7 @@ Abre: http://localhost:5555
 from __future__ import annotations
 
 import random
+import subprocess
 import threading
 import uuid
 import webbrowser
@@ -46,6 +47,52 @@ def serialize_attempt(attempt: dict) -> dict:
     out = dict(attempt)
     out["size"] = Path(attempt["output_path"]).stat().st_size if Path(attempt["output_path"]).exists() else 0
     return out
+
+
+def validate_selected_presets(selected: list[str]) -> tuple[list[str] | None, str | None]:
+    if not selected:
+        return None, "Selecione ao menos 1 preset"
+    invalid = [p for p in selected if p not in PRESETS]
+    if invalid:
+        return None, f"Preset invalido: {', '.join(invalid)}"
+    return selected, None
+
+
+def create_job_with_first_attempt(source_path: Path, source_filename: str, selected: list[str]) -> dict:
+    job_id = uuid.uuid4().hex[:10]
+    final_source_path = UPLOADS_DIR / f"{job_id}{source_path.suffix or '.mp3'}"
+    if source_path != final_source_path:
+        source_path.replace(final_source_path)
+
+    create_job(DB_PATH, job_id, source_filename, str(final_source_path), selected)
+    job = get_job(DB_PATH, job_id)
+    if job is None:
+        raise RuntimeError("Falha ao criar job")
+    first_attempt = generate_next_attempt(job)
+    return {"success": True, "job": job, "current_attempt": first_attempt}
+
+
+def download_youtube_to_mp3(url: str, temp_id: str) -> tuple[Path, str]:
+    out_template = str(UPLOADS_DIR / f"{temp_id}_yt.%(ext)s")
+    cmd = [
+        "yt-dlp",
+        "--extract-audio",
+        "--audio-format",
+        "mp3",
+        "--audio-quality",
+        "0",
+        "--no-playlist",
+        "--restrict-filenames",
+        "--output",
+        out_template,
+        url,
+    ]
+    subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
+    matches = sorted(UPLOADS_DIR.glob(f"{temp_id}_yt.*"))
+    if not matches:
+        raise RuntimeError("Nao foi possivel gerar o MP3 do link informado")
+    source_path = matches[0]
+    return source_path, source_path.name
 
 
 def generate_next_attempt(job: dict) -> dict:
@@ -96,27 +143,47 @@ def api_create_job():
         return jsonify({"error": "Nenhum arquivo enviado"}), 400
 
     file = request.files["file"]
-    selected = request.form.getlist("presets")
-    if not selected:
-        return jsonify({"error": "Selecione ao menos 1 preset"}), 400
-
-    invalid = [p for p in selected if p not in PRESETS]
-    if invalid:
-        return jsonify({"error": f"Preset invalido: {', '.join(invalid)}"}), 400
+    selected, err = validate_selected_presets(request.form.getlist("presets"))
+    if err:
+        return jsonify({"error": err}), 400
 
     ext = Path(file.filename or "audio.mp3").suffix or ".mp3"
     source_filename = file.filename or f"audio{ext}"
-    job_id = uuid.uuid4().hex[:10]
-    source_path = UPLOADS_DIR / f"{job_id}{ext}"
+    temp_id = uuid.uuid4().hex[:8]
+    source_path = UPLOADS_DIR / f"{temp_id}{ext}"
     file.save(source_path)
 
-    create_job(DB_PATH, job_id, source_filename, str(source_path), selected)
-    job = get_job(DB_PATH, job_id)
-    if job is None:
-        return jsonify({"error": "Falha ao criar job"}), 500
+    try:
+        result = create_job_with_first_attempt(source_path, source_filename, selected or [])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify(result)
 
-    first_attempt = generate_next_attempt(job)
-    return jsonify({"success": True, "job": job, "current_attempt": first_attempt})
+
+@app.route("/api/jobs/from-youtube", methods=["POST"])
+def api_create_job_from_youtube():
+    data = request.get_json(silent=True) or {}
+    url = (data.get("url") or "").strip()
+    selected_raw = data.get("presets") or []
+    if not url:
+        return jsonify({"error": "Informe a URL do YouTube"}), 400
+
+    selected, err = validate_selected_presets(list(selected_raw))
+    if err:
+        return jsonify({"error": err}), 400
+
+    temp_id = uuid.uuid4().hex[:8]
+    try:
+        source_path, source_filename = download_youtube_to_mp3(url, temp_id)
+        result = create_job_with_first_attempt(source_path, source_filename, selected or [])
+        return jsonify(result)
+    except subprocess.CalledProcessError as e:
+        detail = e.stderr.strip() if e.stderr else str(e)
+        return jsonify({"error": f"Falha ao baixar audio: {detail}"}), 500
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Timeout ao baixar audio do YouTube"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/jobs/<job_id>")

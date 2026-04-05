@@ -67,6 +67,17 @@
     }
     .drop:hover, .drop.over { border-color: var(--accent-2); background: rgba(56,212,255,.08); }
     .file-meta { margin-top: 10px; color: var(--muted); font-size: .9rem; }
+    .yt-box { margin-top: 12px; display: grid; gap: 8px; }
+    .yt-input {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,.15);
+      background: #0f1322;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 12px;
+      outline: none;
+    }
+    .yt-input:focus { border-color: var(--accent-2); }
 
     .presets { margin-top: 16px; display: grid; gap: 10px; }
     .preset {
@@ -139,6 +150,11 @@
         <input id="fileInput" type="file" accept="audio/*" hidden>
         <div id="fileMeta" class="file-meta">Nenhum arquivo selecionado.</div>
 
+        <div class="yt-box">
+          <input id="ytUrl" class="yt-input" type="url" placeholder="Cole aqui o link do YouTube (uso autorizado)">
+          <button id="ytBtn" class="btn-ghost">Baixar YouTube + Iniciar</button>
+        </div>
+
         <div class="label" style="margin-top:18px;">Presets base</div>
         <div id="presets" class="presets"></div>
 
@@ -185,6 +201,8 @@
     const drop = document.getElementById("drop");
     const fileInput = document.getElementById("fileInput");
     const fileMeta = document.getElementById("fileMeta");
+    const ytUrlInput = document.getElementById("ytUrl");
+    const ytBtn = document.getElementById("ytBtn");
     const presetsEl = document.getElementById("presets");
     const statusEl = document.getElementById("status");
     const startBtn = document.getElementById("startBtn");
@@ -208,6 +226,7 @@
 
     function refreshStartState() {
       startBtn.disabled = !state.file || state.selected.size === 0 || !!state.job;
+      ytBtn.disabled = state.selected.size === 0 || !!state.job;
     }
 
     function clearAll() {
@@ -217,6 +236,7 @@
       state.currentAttempt = null;
       state.attempts = [];
       fileMeta.textContent = "Nenhum arquivo selecionado.";
+      ytUrlInput.value = "";
       currentTitle.textContent = "Nenhuma tentativa ainda";
       currentMeta.textContent = "Inicie um job para gerar a primeira tentativa.";
       historyEl.innerHTML = "";
@@ -339,6 +359,30 @@
       refreshStartState();
     }
 
+    async function createJobFromYoutube() {
+      const url = ytUrlInput.value.trim();
+      if (!url || state.selected.size === 0) return;
+      ytBtn.disabled = true;
+      setStatus("Baixando audio do YouTube e criando job...");
+
+      const res = await fetch(apiUrl("/api/jobs/from-youtube"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url,
+          presets: [...state.selected]
+        })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Falha ao importar do YouTube");
+      state.job = data.job;
+      state.attempts = [data.current_attempt];
+      renderHistory();
+      setCurrentAttempt(data.current_attempt);
+      setStatus(`Job ${state.job.id} criado a partir do YouTube.`);
+      refreshStartState();
+    }
+
     async function updateAttemptStatus(status) {
       if (!state.currentAttempt) return;
       const res = await fetch(apiUrl(`/api/attempts/${state.currentAttempt.id}/status`), {
@@ -390,6 +434,14 @@
     startBtn.addEventListener("click", async () => {
       try {
         await createJob();
+      } catch (err) {
+        setStatus(`Erro: ${err.message}`);
+      }
+    });
+
+    ytBtn.addEventListener("click", async () => {
+      try {
+        await createJobFromYoutube();
       } catch (err) {
         setStatus(`Erro: ${err.message}`);
       }

@@ -6,6 +6,7 @@ App web local em Flask para iteracao de processamento de audio com historico per
 
 - Python + Flask
 - FFmpeg
+- yt-dlp
 - SQLite (persistencia local)
 - Frontend HTML/CSS/JS
 
@@ -25,6 +26,13 @@ python app.py
 ```
 
 Acesse: `http://localhost:5555`
+
+## Fluxo com link do YouTube
+
+Na tela inicial, cole o link em **"Cole aqui o link do YouTube"** e clique em **"Baixar YouTube + Iniciar"**.
+A app baixa o audio em MP3 e ja inicia o job automaticamente com os presets selecionados.
+
+Use apenas links e conteudos para os quais voce tenha autorizacao.
 
 ## Deploy no Render
 
