@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saraiva.AI</title>
+  <style>
+    :root {
+      --bg: #090b12;
+      --panel: #121626;
+      --panel-2: #171d31;
+      --text: #edf0ff;
+      --muted: #96a0c6;
+      --accent: #7b5cff;
+      --accent-2: #38d4ff;
+      --ok: #29cc8f;
+      --bad: #ff5f76;
+      --radius: 16px;
+      --shadow: 0 14px 40px rgba(0, 0, 0, .35);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(1200px circle at 0% 0%, rgba(123,92,255,.22), transparent 50%),
+        radial-gradient(1000px circle at 100% 0%, rgba(56,212,255,.18), transparent 45%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .container { max-width: 980px; margin: 0 auto; padding: 40px 18px 60px; }
+    .hero { margin-bottom: 22px; }
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.9rem, 2.8vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+    .hero p { margin: 8px 0 0; color: var(--muted); }
+
+    .grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 16px; }
+    @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: linear-gradient(170deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .label { color: var(--muted); font-size: .82rem; text-transform: uppercase; letter-spacing: .08em; }
+    .drop {
+      margin-top: 10px;
+      border: 2px dashed rgba(123,92,255,.45);
+      border-radius: 14px;
+      min-height: 122px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 12px;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+    .drop:hover, .drop.over { border-color: var(--accent-2); background: rgba(56,212,255,.08); }
+    .file-meta { margin-top: 10px; color: var(--muted); font-size: .9rem; }
+
+    .presets { margin-top: 16px; display: grid; gap: 10px; }
+    .preset {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: var(--panel);
+    }
+    .preset input { margin-top: 2px; accent-color: var(--accent); }
+    .preset strong { display: block; font-size: .93rem; }
+    .preset small { color: var(--muted); }
+
+    .actions { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      border: 0; border-radius: 12px; cursor: pointer;
+      font-weight: 700; padding: 11px 14px; color: #fff;
+      transition: transform .16s ease, opacity .16s ease;
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    button:not(:disabled):hover { transform: translateY(-1px); }
+    .btn-main { background: linear-gradient(135deg, var(--accent), var(--accent-2)); flex: 1; min-width: 180px; }
+    .btn-ok { background: linear-gradient(135deg, #1abf84, #2de2a2); }
+    .btn-next { background: linear-gradient(135deg, #ff6c82, #ff4f66); }
+    .btn-ghost { background: transparent; border: 1px solid rgba(255,255,255,.2); }
+
+    .status {
+      margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+      font-size: .9rem; border: 1px solid rgba(255,255,255,.1); background: var(--panel);
+    }
+
+    .attempt {
+      margin-top: 10px; padding: 12px; border-radius: 12px;
+      background: var(--panel-2); border: 1px solid rgba(255,255,255,.07);
+    }
+    .attempt .head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .attempt .meta { color: var(--muted); font-size: .88rem; margin-top: 6px; }
+    .attempt .controls { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+    .history { display: grid; gap: 8px; margin-top: 12px; max-height: 390px; overflow: auto; padding-right: 4px; }
+    .h-row {
+      border: 1px solid rgba(255,255,255,.08); border-radius: 12px;
+      padding: 10px; background: rgba(255,255,255,.02); display: flex; justify-content: space-between; gap: 10px;
+      align-items: center;
+    }
+    .badge {
+      font-size: .75rem; border-radius: 999px; padding: 4px 8px; font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .b-pending { color: #ffe282; background: rgba(255,226,130,.1); border-color: rgba(255,226,130,.35); }
+    .b-approved { color: #78ffc8; background: rgba(120,255,200,.1); border-color: rgba(120,255,200,.35); }
+    .b-rejected { color: #ff9fb0; background: rgba(255,159,176,.1); border-color: rgba(255,159,176,.35); }
+    a.link { color: var(--accent-2); text-decoration: none; font-weight: 600; }
+    a.link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <h1>Saraiva.AI</h1>
+      <p>Suba um audio, gere tentativa por tentativa e aprove a melhor versao com historico persistente.</p>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <div class="label">Entrada</div>
+        <div id="drop" class="drop">
+          <div>
+            <div style="font-size:2rem; margin-bottom:6px;">🎵</div>
+            <div>Arraste o arquivo aqui ou clique para escolher</div>
+          </div>
+        </div>
+        <input id="fileInput" type="file" accept="audio/*" hidden>
+        <div id="fileMeta" class="file-meta">Nenhum arquivo selecionado.</div>
+
+        <div class="label" style="margin-top:18px;">Presets base</div>
+        <div id="presets" class="presets"></div>
+
+        <div class="actions">
+          <button id="startBtn" class="btn-main" disabled>Iniciar Job</button>
+          <button id="resetBtn" class="btn-ghost">Limpar</button>
+        </div>
+        <div id="status" class="status">Aguardando upload...</div>
+      </section>
+
+      <section class="card">
+        <div class="label">Tentativa atual</div>
+        <div id="currentBox" class="attempt">
+          <div class="head">
+            <strong id="currentTitle">Nenhuma tentativa ainda</strong>
+          </div>
+          <div id="currentMeta" class="meta">Inicie um job para gerar a primeira tentativa.</div>
+          <div class="controls">
+            <button id="downloadCurrentBtn" class="btn-ghost" disabled>Baixar</button>
+            <button id="approveBtn" class="btn-ok" disabled>Aprovar</button>
+            <button id="rejectNextBtn" class="btn-next" disabled>Rejeitar e gerar proxima</button>
+          </div>
+        </div>
+
+        <div class="label" style="margin-top:18px;">Historico</div>
+        <div id="history" class="history"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      file: null,
+      presets: [],
+      selected: new Set(),
+      job: null,
+      currentAttempt: null,
+      attempts: []
+    };
+
+    const drop = document.getElementById("drop");
+    const fileInput = document.getElementById("fileInput");
+    const fileMeta = document.getElementById("fileMeta");
+    const presetsEl = document.getElementById("presets");
+    const statusEl = document.getElementById("status");
+    const startBtn = document.getElementById("startBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const historyEl = document.getElementById("history");
+    const currentTitle = document.getElementById("currentTitle");
+    const currentMeta = document.getElementById("currentMeta");
+    const approveBtn = document.getElementById("approveBtn");
+    const rejectNextBtn = document.getElementById("rejectNextBtn");
+    const downloadCurrentBtn = document.getElementById("downloadCurrentBtn");
+
+    function humanBytes(size) {
+      if (!size) return "0 B";
+      if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+      return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function refreshStartState() {
+      startBtn.disabled = !state.file || state.selected.size === 0 || !!state.job;
+    }
+
+    function clearAll() {
+      state.file = null;
+      state.selected = new Set();
+      state.job = null;
+      state.currentAttempt = null;
+      state.attempts = [];
+      fileMeta.textContent = "Nenhum arquivo selecionado.";
+      currentTitle.textContent = "Nenhuma tentativa ainda";
+      currentMeta.textContent = "Inicie um job para gerar a primeira tentativa.";
+      historyEl.innerHTML = "";
+      approveBtn.disabled = true;
+      rejectNextBtn.disabled = true;
+      downloadCurrentBtn.disabled = true;
+      renderPresets();
+      refreshStartState();
+      setStatus("Aguardando upload...");
+    }
+
+    function setCurrentAttempt(attempt) {
+      state.currentAttempt = attempt;
+      if (!attempt) {
+        currentTitle.textContent = "Sem tentativa pendente";
+        currentMeta.textContent = "Job concluido ou sem tentativa ativa.";
+        approveBtn.disabled = true;
+        rejectNextBtn.disabled = true;
+        downloadCurrentBtn.disabled = true;
+        return;
+      }
+
+      currentTitle.textContent = `Tentativa #${attempt.attempt_index} - ${attempt.preset_id}`;
+      currentMeta.textContent = `Arquivo: ${attempt.output_filename} | seed ${attempt.params.seed} | ${humanBytes(attempt.size)}`;
+      const pending = attempt.status === "pending";
+      approveBtn.disabled = !pending;
+      rejectNextBtn.disabled = !pending;
+      downloadCurrentBtn.disabled = false;
+    }
+
+    function badgeClass(status) {
+      if (status === "approved") return "b-approved";
+      if (status === "rejected") return "b-rejected";
+      return "b-pending";
+    }
+
+    function renderHistory() {
+      historyEl.innerHTML = "";
+      state.attempts.forEach(a => {
+        const row = document.createElement("div");
+        row.className = "h-row";
+        row.innerHTML = `
+          <div>
+            <div><strong>#${a.attempt_index}</strong> - ${a.preset_id}</div>
+            <div style="color:var(--muted); font-size:.82rem;">${a.output_filename} • ${humanBytes(a.size)}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge ${badgeClass(a.status)}">${a.status}</span>
+            <a class="link" href="/api/attempts/${a.id}/download">Baixar</a>
+          </div>
+        `;
+        historyEl.appendChild(row);
+      });
+    }
+
+    function renderPresets() {
+      presetsEl.innerHTML = "";
+      state.presets.forEach(p => {
+        const box = document.createElement("label");
+        box.className = "preset";
+        const checked = state.selected.has(p.id) ? "checked" : "";
+        box.innerHTML = `
+          <input type="checkbox" data-id="${p.id}" ${checked}>
+          <div>
+            <strong>${p.name} <span style="color:var(--muted); font-weight:500;">(${p.id})</span></strong>
+            <small>${p.desc}</small>
+          </div>
+        `;
+        presetsEl.appendChild(box);
+      });
+
+      presetsEl.querySelectorAll("input[type=checkbox]").forEach(input => {
+        input.addEventListener("change", (e) => {
+          const id = e.target.dataset.id;
+          if (e.target.checked) state.selected.add(id);
+          else state.selected.delete(id);
+          refreshStartState();
+        });
+      });
+    }
+
+    async function loadPresets() {
+      const res = await fetch("/api/presets");
+      const data = await res.json();
+      state.presets = data;
+      state.selected = new Set(data.slice(0, 2).map(p => p.id));
+      renderPresets();
+      refreshStartState();
+    }
+
+    async function loadJob(jobId) {
+      const res = await fetch(`/api/jobs/${jobId}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Falha ao carregar job");
+      state.job = data.job;
+      state.attempts = data.attempts;
+      renderHistory();
+      setCurrentAttempt(data.current_attempt);
+      if (state.job.status === "approved") setStatus("Job aprovado. Fluxo encerrado.");
+      else setStatus(`Job ${state.job.id} ativo.`);
+      refreshStartState();
+    }
+
+    async function createJob() {
+      if (!state.file || state.selected.size === 0) return;
+      startBtn.disabled = true;
+      setStatus("Criando job e gerando primeira tentativa...");
+      const form = new FormData();
+      form.append("file", state.file);
+      [...state.selected].forEach(p => form.append("presets", p));
+
+      const res = await fetch("/api/jobs", { method: "POST", body: form });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Falha ao criar job");
+      state.job = data.job;
+      state.attempts = [data.current_attempt];
+      renderHistory();
+      setCurrentAttempt(data.current_attempt);
+      setStatus(`Job ${state.job.id} criado.`);
+      refreshStartState();
+    }
+
+    async function updateAttemptStatus(status) {
+      if (!state.currentAttempt) return;
+      const res = await fetch(`/api/attempts/${state.currentAttempt.id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Falha ao atualizar status");
+    }
+
+    async function approveCurrent() {
+      if (!state.currentAttempt) return;
+      setStatus("Aprovando tentativa...");
+      await updateAttemptStatus("approved");
+      await loadJob(state.job.id);
+    }
+
+    async function rejectAndNext() {
+      if (!state.currentAttempt) return;
+      setStatus("Rejeitando tentativa e gerando proxima...");
+      await updateAttemptStatus("rejected");
+      const res = await fetch(`/api/jobs/${state.job.id}/next`, { method: "POST" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Falha ao gerar proxima tentativa");
+      await loadJob(state.job.id);
+    }
+
+    drop.addEventListener("click", () => fileInput.click());
+    drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+    drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+    drop.addEventListener("drop", (e) => {
+      e.preventDefault();
+      drop.classList.remove("over");
+      if (e.dataTransfer.files[0]) {
+        state.file = e.dataTransfer.files[0];
+        fileMeta.textContent = `${state.file.name} • ${humanBytes(state.file.size)}`;
+        refreshStartState();
+      }
+    });
+
+    fileInput.addEventListener("change", () => {
+      if (!fileInput.files[0]) return;
+      state.file = fileInput.files[0];
+      fileMeta.textContent = `${state.file.name} • ${humanBytes(state.file.size)}`;
+      refreshStartState();
+    });
+
+    startBtn.addEventListener("click", async () => {
+      try {
+        await createJob();
+      } catch (err) {
+        setStatus(`Erro: ${err.message}`);
+      }
+    });
+
+    approveBtn.addEventListener("click", async () => {
+      try {
+        await approveCurrent();
+      } catch (err) {
+        setStatus(`Erro: ${err.message}`);
+      }
+    });
+
+    rejectNextBtn.addEventListener("click", async () => {
+      try {
+        await rejectAndNext();
+      } catch (err) {
+        setStatus(`Erro: ${err.message}`);
+      }
+    });
+
+    downloadCurrentBtn.addEventListener("click", () => {
+      if (!state.currentAttempt) return;
+      window.location.href = `/api/attempts/${state.currentAttempt.id}/download`;
+    });
+
+    resetBtn.addEventListener("click", clearAll);
+
+    loadPresets().catch((err) => setStatus(`Erro inicial: ${err.message}`));
+  </script>
+</body>
+</html>
