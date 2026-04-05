@@ -170,6 +170,9 @@
   </div>
 
   <script>
+    const API_BASE = window.location.pathname.startsWith("/editormusical") ? "/editormusical" : "";
+    const apiUrl = (path) => `${API_BASE}${path}`;
+
     const state = {
       file: null,
       presets: [],
@@ -262,7 +265,7 @@
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
             <span class="badge ${badgeClass(a.status)}">${a.status}</span>
-            <a class="link" href="/api/attempts/${a.id}/download">Baixar</a>
+            <a class="link" href="${apiUrl(`/api/attempts/${a.id}/download`)}">Baixar</a>
           </div>
         `;
         historyEl.appendChild(row);
@@ -296,7 +299,7 @@
     }
 
     async function loadPresets() {
-      const res = await fetch("/api/presets");
+      const res = await fetch(apiUrl("/api/presets"));
       const data = await res.json();
       state.presets = data;
       state.selected = new Set(data.slice(0, 2).map(p => p.id));
@@ -305,7 +308,7 @@
     }
 
     async function loadJob(jobId) {
-      const res = await fetch(`/api/jobs/${jobId}`);
+      const res = await fetch(apiUrl(`/api/jobs/${jobId}`));
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Falha ao carregar job");
       state.job = data.job;
@@ -325,7 +328,7 @@
       form.append("file", state.file);
       [...state.selected].forEach(p => form.append("presets", p));
 
-      const res = await fetch("/api/jobs", { method: "POST", body: form });
+      const res = await fetch(apiUrl("/api/jobs"), { method: "POST", body: form });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Falha ao criar job");
       state.job = data.job;
@@ -338,7 +341,7 @@
 
     async function updateAttemptStatus(status) {
       if (!state.currentAttempt) return;
-      const res = await fetch(`/api/attempts/${state.currentAttempt.id}/status`, {
+      const res = await fetch(apiUrl(`/api/attempts/${state.currentAttempt.id}/status`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status })
@@ -358,7 +361,7 @@
       if (!state.currentAttempt) return;
       setStatus("Rejeitando tentativa e gerando proxima...");
       await updateAttemptStatus("rejected");
-      const res = await fetch(`/api/jobs/${state.job.id}/next`, { method: "POST" });
+      const res = await fetch(apiUrl(`/api/jobs/${state.job.id}/next`), { method: "POST" });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Falha ao gerar proxima tentativa");
       await loadJob(state.job.id);
@@ -410,7 +413,7 @@
 
     downloadCurrentBtn.addEventListener("click", () => {
       if (!state.currentAttempt) return;
-      window.location.href = `/api/attempts/${state.currentAttempt.id}/download`;
+      window.location.href = apiUrl(`/api/attempts/${state.currentAttempt.id}/download`);
     });
 
     resetBtn.addEventListener("click", clearAll);
