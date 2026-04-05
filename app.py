@@ -87,7 +87,14 @@ def download_youtube_to_mp3(url: str, temp_id: str) -> tuple[Path, str]:
         out_template,
         url,
     ]
-    subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
+    subprocess.run(
+        cmd,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=600,
+        stdin=subprocess.DEVNULL,
+    )
     matches = sorted(UPLOADS_DIR.glob(f"{temp_id}_yt.*"))
     if not matches:
         raise RuntimeError("Nao foi possivel gerar o MP3 do link informado")
@@ -179,6 +186,11 @@ def api_create_job_from_youtube():
         return jsonify(result)
     except subprocess.CalledProcessError as e:
         detail = e.stderr.strip() if e.stderr else str(e)
+        if "Fatal Python error" in detail:
+            detail = (
+                "Falha interna ao executar downloader. "
+                "Tente novamente em alguns segundos."
+            )
         return jsonify({"error": f"Falha ao baixar audio: {detail}"}), 500
     except subprocess.TimeoutExpired:
         return jsonify({"error": "Timeout ao baixar audio do YouTube"}), 500
